@@ -1,25 +1,7 @@
-$('.modal').on('shown.bs.modal', function () {
-   
-    rendition.start()
-    
-    const currentCfi = localStorage.currentCfi;
-
-    rendition.display(currentCfi);
-
-})
-
-function show(){
-    $('.modal').modal('show');
-}
-
-
-var book = ePub("./images.epub"),
-    rendition = book.renderTo("viewer", {
-    width: "100%",
-    height: 600,
-    ignoreClass: 'annotator-hl',
-    manager: "continuous",
-  });
+/**
+ * vars 
+ */
+var book, rendition;
 
 /**
  * Ultimo subrayado realizado
@@ -36,147 +18,211 @@ var lastSelectedHightlight = {
 var hightLights = [];
 
 
+function show(){
+    const path = document.querySelector('#bookPath').value;
 
-book.ready.then(() => {
-
-    document.getElementById("next").addEventListener("click", function(e){
-        e.preventDefault();
-        rendition.next();
+    book = ePub(path);
+    rendition = book.renderTo("viewer", {
+        width: "100%",
+        height: 600,
+        ignoreClass: 'annotator-hl',
+        manager: "continuous",
     });
 
-    document.getElementById("prev").addEventListener("click", function(e){
-        e.preventDefault();
-        rendition.prev();
-    });
+    onReadyBookListeners();
+    $('.modal').modal('show');
+}
 
-    const keyListener = function(e){
-
-        // Left Key
-        if ((e.keyCode || e.which) == 37) {
-            rendition.prev();
-        }
-
-        // Right Key
-        if ((e.keyCode || e.which) == 39) 
-           rendition.next();
-
-    };
-
-    rendition.on("keyup", keyListener);
-    document.addEventListener("keyup", keyListener);
-    document.getElementById('mark').addEventListener('click', markCurrent)
-    document.getElementById("toc").addEventListener('change', changeChapter)
-    document.getElementById('highlight').addEventListener('click', actionsHighlight)
-    document.getElementById('subrayar').addEventListener('click', pushHightlight)
-})
 
 /**
- * Llenar las opciones del select de capitulos
+ * callback modal open
+ * 
  */
-book.loaded.navigation.then(function(toc){
-    let $select = document.getElementById("toc"),
-        docfrag = document.createDocumentFragment();
-
-    toc.forEach(function(chapter) {
-        let option = document.createElement("option");
-        
-        /**
-         * A veces la variable @book (book.navigation.toc) obtiene un sufijo en el href de los capitulos. Ejemplo. #pgepubid00000. 
-         * Eso no se refleja en el href de @rendition (rendition.location.start.href)
-         * 
-         * Regex para evitar errores
-         */
-
-        let hrefValue = chapter.href.replace(/[#].*/, '')
-
-        option.textContent = chapter.label;
-        option.setAttribute("ref", hrefValue);
-        
-        if(hrefValue == localStorage.chapter){
-            option.setAttribute('selected', true);
-        }
-
-        docfrag.appendChild(option);
-    });
-
-    $select.appendChild(docfrag);
-});
-
-/**
- * Oculta flechas al inicio y al final
- */
-rendition.on("relocated", function(location){
+$('.modal').on('shown.bs.modal', function () {
+   
+    rendition.start()
     
-    const next = document.getElementById("next");
-    const prev = document.getElementById("prev");
+    /**
+     * mostrar solo el cfi del libro. Si se muestra el cfi de otro, no se muestra nada
+     */
+    const currentCfi = localStorage.currentCfi;
 
-    if (location.atEnd) {
-        next.style.visibility = "hidden";
-    }else {
-        next.style.visibility = "visible";
-    }
+    rendition.display();
 
-    if (location.atStart) {
-        prev.style.visibility = "hidden";
-    } else {
-        prev.style.visibility = "visible";
-    }
-
-});
-
-/**
- * Select de capitulos options selected
- * 
- * Se ejecuta en cada chapter renderizado
- * 
- */
-rendition.on("rendered", function(section){
-    let currentHref = book?.navigation?.toc?.map(chapter => chapter.href.replace(/[#].*/, ''))
-                                            .find(chapterHref => chapterHref === section.href)
-
-    if (currentHref) {
-        let $select = document.getElementById("toc");
-        let $selected = $select.querySelector("option[selected]");
-        
-        if ($selected) {
-            $selected.removeAttribute("selected");
-        }
-
-        let newSectionSelected = $select.querySelector(`option[ref="${currentHref}"]`);
-        
-        if(newSectionSelected){
-            newSectionSelected.setAttribute("selected", true);
-        }
-        
-    }
-
-});
-
-/**
- * Guardar la ultima selección de texto
- */
-rendition.on("selected", async function(cfiRange, contents) {
-    lastSelectedHightlight.cfirange = cfiRange;
-    lastSelectedHightlight.contents = contents;
-    lastSelectedHightlight.text = (await book.getRange(cfiRange)).toString();
 })
 
+/**
+ * callback modal close
+ * 
+ */
+$('.modal').on('hidden.bs.modal', function () {
+   
+   book.destroy();
 
-this.rendition.themes.default({
-    '::selection': {
-      'background': 'rgba(255,255,0, 0.3)'
-    },
-    '.epubjs-hl' : {
-      'fill': 'yellow', 'fill-opacity': '0.3', 'mix-blend-mode': 'multiply'
-    },
-    '.epub-view': {
-        'width': '100%'
-    },
-    '.epub-container': {
-        'width': '100%'
-    },
+   // remove listeners 
 
-  });
+   document.getElementById("next").removeEventListener("click", nextPage, false);
+   document.getElementById("prev").removeEventListener("click", prevPage, false);
+   document.getElementById('mark').removeEventListener('click', markCurrent, false)
+   document.getElementById("toc").removeEventListener('change', changeChapter, false)
+   document.getElementById('highlight').removeEventListener('click', actionsHighlight, false)
+   document.getElementById('subrayar').removeEventListener('click', pushHightlight, false)
+
+   document.getElementById("toc").options.length = 0;
+   
+})
+
+/**
+ * 
+ */
+function onReadyBookListeners(){
+
+    book.ready.then(() => {
+
+        rendition.on("keyup", keyListener);
+
+        document.addEventListener("keyup", keyListener);
+        document.getElementById("next").addEventListener("click", nextPage);
+        document.getElementById("prev").addEventListener("click", prevPage);
+        document.getElementById('mark').addEventListener('click', markCurrent)
+        document.getElementById("toc").addEventListener('change', changeChapter)
+        document.getElementById('highlight').addEventListener('click', actionsHighlight)
+        document.getElementById('subrayar').addEventListener('click', pushHightlight)
+    })
+
+    /**
+     * Llenar las opciones del select de capitulos
+     */
+    book.loaded.navigation.then(function(toc){
+        let $select = document.getElementById("toc"),
+            docfrag = document.createDocumentFragment();
+
+        toc.forEach(function(chapter) {
+            let option = document.createElement("option");
+            
+            /**
+             * A veces la variable @book (book.navigation.toc) obtiene un sufijo en el href de los capitulos. Ejemplo. #pgepubid00000. 
+             * Eso no se refleja en el href de @rendition (rendition.location.start.href)
+             * 
+             * Regex para evitar errores
+             */
+
+            let hrefValue = chapter.href.replace(/[#].*/, '')
+
+            option.textContent = chapter.label;
+            option.setAttribute("ref", hrefValue);
+            
+            if(hrefValue == localStorage.chapter){
+                option.setAttribute('selected', true);
+            }
+
+            docfrag.appendChild(option);
+        });
+
+        $select.appendChild(docfrag);
+    });
+
+    /**
+     * Oculta flechas al inicio y al final
+     */
+    rendition.on("relocated", function(location){
+        
+        const next = document.getElementById("next");
+        const prev = document.getElementById("prev");
+
+        if (location.atEnd) {
+            next.style.visibility = "hidden";
+        }else {
+            next.style.visibility = "visible";
+        }
+
+        if (location.atStart) {
+            prev.style.visibility = "hidden";
+        } else {
+            prev.style.visibility = "visible";
+        }
+
+    });
+
+    /**
+     * Select de capitulos options selected
+     * 
+     * Se ejecuta en cada chapter renderizado
+     * 
+     */
+    rendition.on("rendered", function(section){
+        let currentHref = book?.navigation?.toc?.map(chapter => chapter.href.replace(/[#].*/, ''))
+                                                .find(chapterHref => chapterHref === section.href)
+
+        if (currentHref) {
+            let $select = document.getElementById("toc");
+            let $selected = $select.querySelector("option[selected]");
+            
+            if ($selected) {
+                $selected.removeAttribute("selected");
+            }
+
+            let newSectionSelected = $select.querySelector(`option[ref="${currentHref}"]`);
+            
+            if(newSectionSelected){
+                newSectionSelected.setAttribute("selected", true);
+            }
+            
+        }
+
+    });
+
+    /**
+     * Guardar la ultima selección de texto
+     */
+    rendition.on("selected", async function(cfiRange, contents) {
+        lastSelectedHightlight.cfirange = cfiRange;
+        lastSelectedHightlight.contents = contents;
+        lastSelectedHightlight.text = (await book.getRange(cfiRange)).toString();
+    })
+
+
+    rendition.themes.default({
+        '::selection': {
+        'background': 'rgba(255,255,0, 0.3)'
+        },
+        '.epubjs-hl' : {
+        'fill': 'yellow', 'fill-opacity': '0.3', 'mix-blend-mode': 'multiply'
+        },
+        '.epub-view': {
+            'width': '100%'
+        },
+        '.epub-container': {
+            'width': '100%'
+        },
+
+    });
+}
+
+
+function keyListener(e){
+
+    // Left Key
+    if ((e.keyCode || e.which) == 37) {
+        rendition.prev();
+    }
+
+    // Right Key
+    if ((e.keyCode || e.which) == 39) 
+        rendition.next();
+
+};
+
+function nextPage(e){
+    console.log("hli")
+    e.preventDefault();
+    rendition.next();
+}
+
+function prevPage(e){
+    e.preventDefault();
+    rendition.prev();
+}
 
 /**
  * Marcar cfi y capitulo
