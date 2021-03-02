@@ -1,3 +1,18 @@
+$('.modal').on('shown.bs.modal', function () {
+   
+    rendition.start()
+    
+    const currentCfi = localStorage.currentCfi;
+
+    rendition.display(currentCfi);
+
+})
+
+function show(){
+    $('.modal').modal('show');
+}
+
+
 var book = ePub("./images.epub"),
     rendition = book.renderTo("viewer", {
     width: "100%",
@@ -21,11 +36,6 @@ var lastSelectedHightlight = {
 var hightLights = [];
 
 
-/**
- * Cfi marcado
- */
-const currentCfi = localStorage.currentCfi;
-rendition.display(currentCfi);
 
 book.ready.then(() => {
 
@@ -222,12 +232,12 @@ function addHighlight(newHighlight){
             hightlightContainer = document.getElementById('highlight');
 
         fragmentLi.classList.add('list-group-item');
+        fragmentLi.classList.add('mt-1');
 
         if (range) {
             let textHighlight = range.toString();
 
             fragmentLi.innerHTML = `
-                <li class="list-group-item">
                     ${textHighlight}
 
                     <div cfiRange="${cfirange}" class="mt-2 container-actions">
@@ -243,8 +253,7 @@ function addHighlight(newHighlight){
                             <i class="bi bi-trash-fill trash"></i>
                         </button>
                     </div>
-                    
-                </li>
+    
             `               
             hightlightContainer.appendChild(fragmentLi);
         }
