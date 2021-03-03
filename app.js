@@ -1,27 +1,75 @@
 /**
  * vars 
  */
-var book, rendition;
+var book, rendition, DataBook;
 
 /**
  * Ultimo subrayado realizado
  */
 var lastSelectedHightlight = {
+    id: null,
     text: '',
     cfirange: '',
-    contents: {}
+    clear() {
+        this.text = '';
+        this.cfirange = '';
+    }
 }
 
 /**
- * Subrayados guardados
+ * simulacion api
  */
-var hightLights = [];
+const ApiService = {
 
+    async getDataBook(){
+        const response = await fetch('./data.json');
+        
+        return await response.json()
+    },
 
-function show(){
-    const path = document.querySelector('#bookPath').value;
+    updateDataBook(data){
+        return new Promise((resolve, reject) => {
+            resolve(true)
+        })
+    },
+    
+    storeHighlight(data){
+        return new Promise((resolve, reject) => {
+            // id random
+            resolve({
+                id: parseInt(Math.random(200) * 100)
+            })
+        })
+    },
+    
+    destroyHighlight(highlight_id){
+        return new Promise((resolve, reject) => {
+            resolve(true)
+        })
+    },
+    
+    storeNote(data){
+        return new Promise((resolve, reject) => {
+            // id random
+            resolve({
+                id: parseInt(Math.random(200) * 100)
+            })
+        })
+    },
+    
+    destroyNote(note_id){
+        return new Promise((resolve, reject) => {
+            resolve(true)
+        })
+    }
+} 
 
-    book = ePub(path);
+//
+
+async function show(){
+    DataBook = await ApiService.getDataBook();
+
+    book = ePub(DataBook.path);
     rendition = book.renderTo("viewer", {
         width: "100%",
         height: 600,
@@ -29,8 +77,17 @@ function show(){
         manager: "continuous",
     });
 
-    onReadyBookListeners();
+    onReadyBook();
+
     $('.modal').modal('show');
+}
+
+function renderData(){
+    const elementTitle = document.querySelector('#title-book');
+          elementTitle.innerHTML = DataBook.title;
+
+    DataBook.highlights.forEach(addHighlight)
+    DataBook.notes.forEach(addNote)
 }
 
 
@@ -41,12 +98,11 @@ function show(){
 $('.modal').on('shown.bs.modal', function () {
    
     rendition.start()
-    
-    /**
-     * mostrar solo el cfi del libro. Si se muestra el cfi de otro, no se muestra nada
-     */
-    const currentCfi = localStorage.currentCfi;
 
+    if(DataBook.cfirange != '' && DataBook.cfirange != null){
+        return rendition.display(DataBook.cfirange);
+    }
+    
     rendition.display();
 
 })
@@ -59,23 +115,22 @@ $('.modal').on('hidden.bs.modal', function () {
    
    book.destroy();
 
-   // remove listeners 
+   // remove listeners
 
    document.getElementById("next").removeEventListener("click", nextPage, false);
    document.getElementById("prev").removeEventListener("click", prevPage, false);
    document.getElementById('mark').removeEventListener('click', markCurrent, false)
    document.getElementById("toc").removeEventListener('change', changeChapter, false)
    document.getElementById('highlight').removeEventListener('click', actionsHighlight, false)
+   document.getElementById('listNotes').removeEventListener('click', actionsNotes, false)
    document.getElementById('subrayar').removeEventListener('click', pushHightlight, false)
 
    document.getElementById("toc").options.length = 0;
    
 })
 
-/**
- * 
- */
-function onReadyBookListeners(){
+
+function onReadyBook(){
 
     book.ready.then(() => {
 
@@ -87,7 +142,10 @@ function onReadyBookListeners(){
         document.getElementById('mark').addEventListener('click', markCurrent)
         document.getElementById("toc").addEventListener('change', changeChapter)
         document.getElementById('highlight').addEventListener('click', actionsHighlight)
+        document.getElementById('listNotes').addEventListener('click', actionsNotes, false)
         document.getElementById('subrayar').addEventListener('click', pushHightlight)
+
+        renderData();
     })
 
     /**
@@ -112,7 +170,7 @@ function onReadyBookListeners(){
             option.textContent = chapter.label;
             option.setAttribute("ref", hrefValue);
             
-            if(hrefValue == localStorage.chapter){
+            if(hrefValue == DataBook.chapter){
                 option.setAttribute('selected', true);
             }
 
@@ -145,9 +203,9 @@ function onReadyBookListeners(){
     });
 
     /**
-     * Select de capitulos options selected
+     * Select de capitulos
      * 
-     * Se ejecuta en cada chapter renderizado
+     * Listener se ejecuta en cada chapter renderizado
      * 
      */
     rendition.on("rendered", function(section){
@@ -175,10 +233,9 @@ function onReadyBookListeners(){
     /**
      * Guardar la ultima selección de texto
      */
-    rendition.on("selected", async function(cfiRange, contents) {
-        lastSelectedHightlight.cfirange = cfiRange;
-        lastSelectedHightlight.contents = contents;
-        lastSelectedHightlight.text = (await book.getRange(cfiRange)).toString();
+    rendition.on("selected", async function(cfirange, contents) {
+        lastSelectedHightlight.cfirange = cfirange;
+        lastSelectedHightlight.text = (await book.getRange(cfirange)).toString();
     })
 
 
@@ -214,7 +271,6 @@ function keyListener(e){
 };
 
 function nextPage(e){
-    console.log("hli")
     e.preventDefault();
     rendition.next();
 }
@@ -233,8 +289,10 @@ function markCurrent(event){
 
     event.preventDefault();
 
-    localStorage.setItem('currentCfi', rendition.location.start.cfi);
-    localStorage.setItem('chapter', rendition.location.start.href);
+    DataBook.cfirange = rendition.location.start.cfi;
+    DataBook.chapter = rendition.location.start.href;
+    
+    ApiService.updateDataBook(DataBook).then( r => {})
 
 }
 
@@ -256,11 +314,18 @@ function changeChapter({ target }){
  */
 function pushHightlight(){
 
-    hightLights.push(lastSelectedHightlight);
+    if(lastSelectedHightlight.text == '' && lastSelectedHightlight.cfirange == ''){
+        return alert("No se ha subrayado...")
+    }
 
-    lastSelectedHightlight.contents.window.getSelection().removeAllRanges();
+    ApiService.storeHighlight(lastSelectedHightlight).then(response => {
 
-    addHighlight(lastSelectedHightlight)
+        DataBook.highlights.push({ ... lastSelectedHightlight });
+          
+        addHighlight(lastSelectedHightlight)
+        
+        lastSelectedHightlight.clear();
+    })
 }
 
 /**
@@ -286,17 +351,14 @@ function addHighlight(newHighlight){
             fragmentLi.innerHTML = `
                     ${textHighlight}
 
-                    <div cfiRange="${cfirange}" class="mt-2 container-actions">
-                        <button class="btn btn-sm btn-outline-secondary actions-subrayado viewcfi">
+                    <div cfirange="${cfirange}" class="mt-2 container-actions">
+                        <button class="btn btn-sm btn-outline-secondary viewcfi">
                             <i class="bi bi-eye-fill viewcfi"></i>
                             Visualizar
                         </button>
-                        <button class="btn btn-sm btn-outline-secondary actions-subrayado comments">
-                            <i class="bi bi-chat-left-dots-fill comments"></i>
-                            Comentarios
-                        </button>
-                        <button  class="btn btn-sm btn-outline-danger actions-subrayado trash">
-                            <i class="bi bi-trash-fill trash"></i>
+
+                        <button  class="btn btn-sm btn-outline-danger trash">
+                            Eliminar
                         </button>
                     </div>
     
@@ -314,26 +376,128 @@ function addHighlight(newHighlight){
  */
 function actionsHighlight({ target }){
 
-    const cfiRange = target.closest('.container-actions').getAttribute('cfiRange');
+    const cfirange = target.closest('.container-actions')?.getAttribute('cfirange');
+
+    if(typeof cfirange == 'undefined')
+        return;
 
     if(target.classList.contains('viewcfi')){
-        rendition.display(cfiRange);
-    }
-    else if(target.classList.contains('comments')){
-        alert("wii comentarios")
+        rendition.display(cfirange);
     }
     else if(target.classList.contains('trash')){
-        
-        rendition.annotations.remove(cfiRange);
-        
-        // remove list highlights
-        hightLights = hightLights.filter(item => item.cfirange == cfiRange)
-        
-        // remove dom
-        const li = target.closest('li')
-        li.parentNode.remove(li)
 
+        const highlight_id = DataBook.highlights.find(item => item.cfirange == cfirange)?.id;
+
+        destroyHighlight(highlight_id, cfirange, target)
     }
         
     
+}
+
+/**
+ * remove list highlights
+ * 
+ * @param {*} highlight_id id highlight db
+ * @param {*} cfirange range
+ * @param {*} target element html
+ */
+function destroyHighlight(highlight_id, cfirange, target){
+        
+    ApiService.destroyHighlight(highlight_id).then(r => {
+
+        rendition.annotations.remove(cfirange);
+        
+        DataBook.highlights = DataBook.highlights.filter(item => item.cfirange != cfirange)
+
+        // remove dom
+        const li = target.closest('li')
+        
+        li.parentNode.removeChild(li)
+    })
+}
+
+/**
+ * guardar notas
+ */
+function saveNote(){
+    const note = document.querySelector('#note-textarea').value;
+
+    if(note == ''){
+        return alert("Escribir la nota...")
+    }
+
+    ApiService.storeNote({ note }).then(response => {
+        const dataNote = { id: response.id, note };
+
+        DataBook.notes.push(dataNote);
+          
+        addNote(dataNote)
+
+        document.querySelector('#note-textarea').value = '';
+    })
+}
+
+/**
+ * pintar notas en el dom
+ * 
+ * @param {object} dataNote
+ */
+function addNote(dataNote){
+
+    let fragmentLi = document.createElement('li'),
+        notesContainer = document.getElementById('listNotes');
+
+    fragmentLi.classList.add('list-group-item');
+    fragmentLi.classList.add('mt-1');
+
+    fragmentLi.innerHTML = `
+            ${dataNote.note}
+
+            <div data-id="${dataNote.id}" class="mt-2 noteid">
+                <button  class="btn btn-sm btn-outline-danger trash">
+                    Eliminar
+                </button>
+            </div>
+
+    `               
+    notesContainer.appendChild(fragmentLi);
+    
+}
+
+/**
+ * eventos botones notas
+ * 
+ * @param {*} target 
+ */
+function actionsNotes({ target }){
+
+    const noteid = target.closest('.noteid')?.getAttribute('data-id')
+
+    if(typeof noteid == 'undefined')
+        return;
+
+    if(target.classList.contains('trash')){
+        destroyNote(noteid, target)
+    }
+        
+    
+}
+
+/**
+ * elimiinar nota dom
+ * 
+ * @param {*} highlight_id id note
+ * @param {*} target element html
+ */
+function destroyNote(note_id, target){
+        
+    ApiService.destroyHighlight(note_id).then(r => {
+        
+        DataBook.notes = DataBook.notes.filter(item => item.id != note_id)
+
+        // remove dom
+        const li = target.closest('li')
+        
+        li.parentNode.removeChild(li)
+    })
 }

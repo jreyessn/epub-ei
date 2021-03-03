@@ -30,7 +30,7 @@
             <div class="col-md-8 col-sm-12">
               <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                  <li class="breadcrumb-item active" aria-current="page">Why Authors Go Wrong / And Other Explanations</li>
+                  <li class="breadcrumb-item active" id="title-book">Title</li>
                 </ol>
               </nav>
             </div>
@@ -43,19 +43,13 @@
       
               <div class="text-center">
                 <button id="mark" class="btn btn-sm btn-outline-secondary button-actions-margin-top" title="Marcar">
-                  M
-                </button>
-              </div>
-              
-              <div class="text-center">
-                <button  class="btn btn-sm btn-outline-secondary button-actions-margin-top" title="Nueva Nota">
-                  N      
+                  Marcar
                 </button>
               </div>
               
               <div class="text-center">
                 <button id="subrayar" class="btn btn-sm btn-outline-secondary button-actions-margin-top"  title="Subrayar">
-                  Subrayarrr
+                  Subrayar
                 </button>
               </div>
       
@@ -90,6 +84,15 @@
                 </div>
                 <div id="notes" class="tab-pane fade scroll-y-content-tabs">
 
+                  <div class="form-group p-1">
+                    <label class="control-label">Escribir nueva nota</label>
+                    <textarea id="note-textarea" rows="4" class="form-control"></textarea>
+
+                    <button class="btn btn-primary" onclick="saveNote()">Guardar</button>
+                  </div>
+
+                  <ul class="list-group-flush p-1" id="listNotes"></ul>
+
                 </div>
               </div>
             </div>
@@ -104,8 +107,6 @@
   </div>
 
   <button onclick="show()">Open</button>
-  <label for="">Path</label>
-  <input type="text" placeholder="./book.epub" id="bookPath">
 
 
 <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha384-nvAa0+6Qg9clwYCGGPpDQLVpLNn0fRaROjHqs13t4Ggj3Ez50XnGQqc/r8MhnRDZ" crossorigin="anonymous"></script>
