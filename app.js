@@ -21,45 +21,138 @@ var lastSelectedHightlight = {
  */
 const ApiService = {
 
-    async getDataBook(){
-        const response = await fetch('./data.json');
-        
-        return await response.json()
+    prefixApi: 'http://localhost/empresainteligente/Biblioteca_Api_REST_Backend/',
+
+    id_usuario: 1,
+
+    async getDataBook(id_multimedia){
+        return new Promise((resolve, reject) => {
+
+            $.ajax({
+                url: `${this.prefixApi}Multimedia/multimedia_by_id?id=${id_multimedia}=&is_epub=true`,
+                type: 'get',
+                dataType: 'json',
+                success(response){
+                    resolve(response.result)
+                },
+                error(error){
+                    alert("Error en la petición")
+                    reject(error)
+                }
+            })
+
+
+        })
     },
 
-    updateDataBook(data){
+    updateMarker(){
         return new Promise((resolve, reject) => {
-            resolve(true)
+
+            const body = {
+                id: DataBook.marker?.id ? DataBook.marker.id : null,
+                id_usuario:  this.id_usuario,
+                id_multimedia:  DataBook.id,
+                cfirange: rendition.location.end.cfi,
+                chapter: rendition.location.end.href
+            }
+   
+            $.ajax({
+                url: `${this.prefixApi}Libros/actualizar_marcador`,
+                type: 'post',
+                data: body,
+                success(response){
+                    resolve(response.result)
+                },
+                error(error){
+                    reject(error)
+                }
+            })
+
         })
     },
     
     storeHighlight(data){
         return new Promise((resolve, reject) => {
-            // id random
-            resolve({
-                id: parseInt(Math.random(200) * 100)
+
+            const body = {
+                id_usuario:  this.id_usuario,
+                id_multimedia:  DataBook.id,
+                cfirange: data.cfirange,
+                text: data.text
+            }
+
+            $.ajax({
+                url: `${this.prefixApi}Libros/guardar_subrayado`,
+                type: 'post',
+                data: body,
+                success(response){
+                    resolve(response.result)
+                },
+                error(error){
+                    reject(error)
+                }
             })
+
         })
     },
     
     destroyHighlight(highlight_id){
         return new Promise((resolve, reject) => {
-            resolve(true)
+
+            $.ajax({
+                url: `${this.prefixApi}Libros/borrar_subrayado`,
+                type: 'post',
+                data: { id: highlight_id },
+                success(response){
+                    resolve(response)
+                },
+                error(error){
+                    reject(error)
+                }
+            })
+
         })
     },
     
     storeNote(data){
         return new Promise((resolve, reject) => {
-            // id random
-            resolve({
-                id: parseInt(Math.random(200) * 100)
+
+            const body = {
+                id_usuario:  this.id_usuario,
+                id_multimedia:  DataBook.id,
+                nota: data.nota,
+            }
+
+            $.ajax({
+                url: `${this.prefixApi}Libros/guardar_nota`,
+                type: 'post',
+                data: body,
+                success(response){
+                    resolve(response.result)
+                },
+                error(error){
+                    reject(error)
+                }
             })
+
         })
     },
     
     destroyNote(note_id){
         return new Promise((resolve, reject) => {
-            resolve(true)
+
+            $.ajax({
+                url: `${this.prefixApi}Libros/borrar_nota`,
+                type: 'post',
+                data: { id: note_id },
+                success(response){
+                    resolve(response)
+                },
+                error(error){
+                    reject(error)
+                }
+            })
+
         })
     }
 } 
@@ -67,9 +160,9 @@ const ApiService = {
 //
 
 async function show(){
-    DataBook = await ApiService.getDataBook();
+    DataBook = await ApiService.getDataBook(22);
 
-    book = ePub(DataBook.path);
+    book = ePub(DataBook.archivo);
     rendition = book.renderTo("viewer", {
         width: "100%",
         height: 600,
@@ -84,7 +177,13 @@ async function show(){
 
 function renderData(){
     const elementTitle = document.querySelector('#title-book');
-          elementTitle.innerHTML = DataBook.title;
+          elementTitle.innerHTML = DataBook.nombre;
+
+    /**
+     * limpiar divs contenedores
+     */
+    document.getElementById('highlight').innerHTML = '';
+    document.getElementById('listNotes').innerHTML = '';
 
     DataBook.highlights.forEach(addHighlight)
     DataBook.notes.forEach(addNote)
@@ -99,8 +198,8 @@ $('.modal').on('shown.bs.modal', function () {
    
     rendition.start()
 
-    if(DataBook.cfirange != '' && DataBook.cfirange != null){
-        return rendition.display(DataBook.cfirange);
+    if(DataBook?.marker?.cfirange){
+        return rendition.display(DataBook.marker.cfirange);
     }
     
     rendition.display();
@@ -288,11 +387,10 @@ function prevPage(e){
 function markCurrent(event){
 
     event.preventDefault();
-
-    DataBook.cfirange = rendition.location.start.cfi;
-    DataBook.chapter = rendition.location.start.href;
     
-    ApiService.updateDataBook(DataBook).then( r => {})
+    ApiService.updateMarker().then(result => {
+        DataBook.marker = result;
+    })
 
 }
 
@@ -318,11 +416,11 @@ function pushHightlight(){
         return alert("No se ha subrayado...")
     }
 
-    ApiService.storeHighlight(lastSelectedHightlight).then(response => {
+    ApiService.storeHighlight(lastSelectedHightlight).then(result => {
 
-        DataBook.highlights.push({ ... lastSelectedHightlight });
+        DataBook.highlights.push({ ... result });
           
-        addHighlight(lastSelectedHightlight)
+        addHighlight(result)
         
         lastSelectedHightlight.clear();
     })
@@ -420,18 +518,17 @@ function destroyHighlight(highlight_id, cfirange, target){
  * guardar notas
  */
 function saveNote(){
-    const note = document.querySelector('#note-textarea').value;
+    const nota = document.querySelector('#note-textarea').value;
 
-    if(note == ''){
+    if(nota == ''){
         return alert("Escribir la nota...")
     }
 
-    ApiService.storeNote({ note }).then(response => {
-        const dataNote = { id: response.id, note };
+    ApiService.storeNote({ nota }).then(result => {
 
-        DataBook.notes.push(dataNote);
+        DataBook.notes.push(result);
           
-        addNote(dataNote)
+        addNote(result)
 
         document.querySelector('#note-textarea').value = '';
     })
@@ -451,7 +548,7 @@ function addNote(dataNote){
     fragmentLi.classList.add('mt-1');
 
     fragmentLi.innerHTML = `
-            ${dataNote.note}
+            ${dataNote.nota}
 
             <div data-id="${dataNote.id}" class="mt-2 noteid">
                 <button  class="btn btn-sm btn-outline-danger trash">
@@ -491,7 +588,7 @@ function actionsNotes({ target }){
  */
 function destroyNote(note_id, target){
         
-    ApiService.destroyHighlight(note_id).then(r => {
+    ApiService.destroyNote(note_id).then(r => {
         
         DataBook.notes = DataBook.notes.filter(item => item.id != note_id)
 

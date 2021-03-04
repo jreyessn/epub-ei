@@ -1,12 +1,19 @@
 {
     "id": 1,
-    "title": "Moby Dick",
-    "cfirange": "epubcfi(/6/30[xchapter_009]!/4/2/2/2/1:0)",
-    "chapter": "chapter_009.xhtml",
-    "path": "./moby-dick.epub",
+    "nombre": "Moby Dick",
+    "archivo": "./moby-dick.epub",
+    "marker": {
+        "id": 1,
+        "id_usuario": 1,
+        "id_multimedia": 1,
+        "cfirange": "epubcfi(/6/30[xchapter_009]!/4/2/2/2/1:0)",
+        "chapter": "chapter_009.xhtml"
+    },
     "highlights": [
         {
             "id": 1,
+            "id_multimedia": 1,
+            "id_usuario": 1,
             "text": "It will be seen that this mere painstaking",
             "cfirange": "epubcfi(/6/12[xepigraph_001]!/4/2/4,/1:0,/1:42)"
         }
@@ -14,10 +21,14 @@
     "notes": [
         {
             "id": 1,
+            "id_multimedia": 1,
+            "id_usuario": 1,
             "note": "Hola"
         },
         {
             "id": 2,
+            "id_multimedia": 1,
+            "id_usuario": 1,
             "note": "testtttt"
         }
     ]
